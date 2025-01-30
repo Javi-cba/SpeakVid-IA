@@ -3,37 +3,43 @@ import os
 import hashlib
 from pytube import YouTube
 
-model_name = "tiny"  # Whisper model to use
+model_name = "tiny.en"  
 model = whisper.load_model(model_name)
 
 
 def download_video(url):
-    yt = YouTube('http://youtube.com/watch?v=2lAe1cqCOXo')
-    print(yt.title)
-    
+    yt = YouTube(url)
+    hash_file = hashlib.md5()
+    hash_file.update(yt.title.encode())
+    file_name = f'{hash_file.hexdigest()}.mp4'
+    yt.streams.first().download(output_path=os.getcwd(), filename=file_name)
+
     return {
-        "file_name": "file_name",
+        "file_name": file_name,
         "title": yt.title
     }
 
-
 def transcribe_yt(url):
-    video = download_video(url)
-    result = model.transcribe(video["file_name"])
-    os.remove(video["file_name"])
+    try:
+        vid=download_video(url)
+        result = model.transcribe(vid["file_name"])
+        os.remove(vid["file_name"])
 
-    segments = []
-    for item in result["segments"]:
-        segments.append(format_item(item))
+        segments = []
+        for item in result["segments"]:
+            segments.append(convert_segment(item))
 
+        return {
+            "title": vid["title"],
+            "segments": segments
+        }
+   
+    except Exception as e:
+        raise Exception(f"Error transcribiendo el video: {str(e)}")
+
+
+def convert_segment(segment):
     return {
-        "title": video["title"],
-        "segments": segments
-    }
-
-
-def format_item(item):
-    return {
-        "time": item["start"],
-        "text": item["text"]
+        "start": segment["start"],
+        "text": segment["text"]
     }
